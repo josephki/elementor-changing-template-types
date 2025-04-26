@@ -1,0 +1,350 @@
+/**
+ * Elementor Template Type Changer
+ * 
+ * Dieses Plugin erstellt eine einfache Benutzeroberfläche zum Ändern 
+ * des Typs von Elementor-Templates durch Bearbeitung der JSON-Datei.
+ * 
+ * @version 1.0
+ */
+
+// Direktzugriff verhindern
+if (!defined('ABSPATH')) {
+    exit;
+}
+
+// Menüpunkt hinzufügen
+function elementor_type_changer_menu() {
+    add_management_page(
+        'Elementor Type Changer', 
+        'Elementor Type Changer', 
+        'manage_options', 
+        'elementor-type-changer', 
+        'elementor_type_changer_page'
+    );
+}
+add_action('admin_menu', 'elementor_type_changer_menu');
+
+// Admin-Seite
+function elementor_type_changer_page() {
+    $message = '';
+    $modified_json = '';
+    $from_type = '';
+    $to_type = '';
+    
+    // Liste der Template-Typen
+    $template_types = array(
+        'page' => 'Seite',
+        'section' => 'Abschnitt',
+        'container' => 'Container',
+        'widget' => 'Widget',
+        'global-widget' => 'Globales Widget',
+        'floating' => 'Floating Element',
+        'header' => 'Kopfzeile',
+        'footer' => 'Fußzeile',
+        'single' => 'Single',
+        'single-post' => 'Single Post',
+        'single-page' => 'Single Page',
+        'archive' => 'Archiv',
+        'search-results' => 'Suchergebnisse',
+        'error-404' => '404',
+        'loop-item' => 'Loop Item',
+        'product' => 'Produkt',
+        'product-archive' => 'Produkt-Archiv',
+        'popup' => 'Popup',
+        'landing-page' => 'Landing Page',
+        'kit' => 'Kit',
+        'wp-post' => 'WP Post',
+        'jet_header' => 'JetTheme Header',
+        'jet_footer' => 'JetTheme Footer',
+        'jet-listing-items' => 'Jet Listing Items',
+        'jet-popup' => 'Jet Popup'
+    );
+    
+    // Verarbeite Datei-Upload
+    if (isset($_FILES['json_file']) && !empty($_FILES['json_file']['tmp_name']) && isset($_POST['new_type'])) {
+        if (!current_user_can('manage_options')) {
+            wp_die('Keine Berechtigung.');
+        }
+        
+        $file_content = file_get_contents($_FILES['json_file']['tmp_name']);
+        $json_data = json_decode($file_content, true);
+        
+        if ($json_data === null) {
+            $message = '<div class="error"><p>Fehler: Die Datei ist kein gültiges JSON.</p></div>';
+        } else {
+            // Originalen Typ speichern
+            $from_type = isset($json_data['type']) ? $json_data['type'] : 'unbekannt';
+            
+            // Neuen Typ anwenden
+            $to_type = sanitize_text_field($_POST['new_type']);
+            $json_data['type'] = $to_type;
+            
+            // Zurück zu JSON konvertieren
+            $modified_json = json_encode($json_data);
+            
+            $message = '<div class="updated"><p>Template-Typ erfolgreich von <strong>' . 
+                       esc_html($from_type) . '</strong> zu <strong>' . 
+                       esc_html($to_type) . '</strong> geändert.</p></div>';
+        }
+    }
+    
+    ?>
+    <div class="wrap">
+        <h1>Elementor Template Type Changer</h1>
+        <?php echo $message; ?>
+        
+        <?php if (empty($modified_json)): ?>
+        
+        <div class="card">
+            <h2>Template-Typ ändern</h2>
+            <p>Wähle eine Elementor-Template-JSON-Datei, die du zuvor exportiert hast, und den gewünschten neuen Typ.</p>
+            
+            <form method="post" enctype="multipart/form-data">
+                <table class="form-table">
+                    <tr>
+                        <th><label for="json_file">JSON-Datei auswählen:</label></th>
+                        <td><input type="file" name="json_file" id="json_file" accept=".json" required></td>
+                    </tr>
+                    <tr>
+                        <th><label for="new_type">Neuer Template-Typ:</label></th>
+                        <td>
+                            <select name="new_type" id="new_type" required>
+                                <option value="">-- Typ auswählen --</option>
+                                <?php foreach ($template_types as $type_key => $type_name): ?>
+                                    <option value="<?php echo esc_attr($type_key); ?>"><?php echo esc_html($type_name); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </td>
+                    </tr>
+                </table>
+                
+                <p class="submit">
+                    <input type="submit" class="button button-primary" value="Template-Typ ändern">
+                </p>
+            </form>
+        </div>
+        
+        <div class="card" style="margin-top: 20px;">
+            <h2>Anleitung</h2>
+            <ol>
+                <li>Exportiere dein Template aus Elementor (Elementor > Templates > Export)</li>
+                <li>Wähle die heruntergeladene JSON-Datei aus</li>
+                <li>Wähle den gewünschten neuen Template-Typ aus</li>
+                <li>Klicke "Template-Typ ändern"</li>
+                <li>Lade die geänderte Datei herunter</li>
+                <li>Importiere die geänderte Datei in Elementor (Elementor > Templates > Import Templates)</li>
+            </ol>
+            <p><strong>Hinweis:</strong> Diese Methode erstellt ein neues Template mit dem gewünschten Typ.</p>
+        </div>
+        
+        <?php else: ?>
+        
+        <div class="card">
+            <h2>Template-Typ geändert</h2>
+            <p>Dein Template wurde von <strong><?php echo esc_html($from_type); ?></strong> zu <strong><?php echo esc_html($to_type); ?></strong> geändert.</p>
+            <p>Folge diesen Schritten, um den Vorgang abzuschließen:</p>
+            <ol>
+                <li>Klicke auf "Geänderte Datei herunterladen"</li>
+                <li>Gehe zu Elementor > Templates</li>
+                <li>Klicke auf "Import Templates" und wähle die heruntergeladene Datei aus</li>
+            </ol>
+            
+            <p class="submit">
+                <button id="download-json" class="button button-primary">Geänderte Datei herunterladen</button>
+                <a href="<?php echo admin_url('tools.php?page=elementor-type-changer'); ?>" class="button">Zurück</a>
+            </p>
+            
+            <script>
+            document.getElementById('download-json').addEventListener('click', function() {
+                var jsonData = <?php echo json_encode($modified_json); ?>;
+                var dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(jsonData);
+                var downloadAnchorNode = document.createElement('a');
+                downloadAnchorNode.setAttribute("href", dataStr);
+                downloadAnchorNode.setAttribute("download", "elementor-template-<?php echo esc_js($to_type); ?>.json");
+                document.body.appendChild(downloadAnchorNode);
+                downloadAnchorNode.click();
+                downloadAnchorNode.remove();
+            });
+            </script>
+        </div>
+        
+        <?php endif; ?>
+    </div>
+    <?php
+}
+
+----------------------------------------- englische Version ------------------------------------
+/**
+ * Elementor Template Type Changer
+ * 
+ * This plugin creates a simple interface for changing the type of 
+ * Elementor templates by editing the JSON file.
+ * 
+ * @version 1.0
+ */
+
+// Prevent direct access
+if (!defined('ABSPATH')) {
+    exit;
+}
+
+// Add menu item
+function elementor_type_changer_menu() {
+    add_management_page(
+        'Elementor Type Changer', 
+        'Elementor Type Changer', 
+        'manage_options', 
+        'elementor-type-changer', 
+        'elementor_type_changer_page'
+    );
+}
+add_action('admin_menu', 'elementor_type_changer_menu');
+
+// Admin page
+function elementor_type_changer_page() {
+    $message = '';
+    $modified_json = '';
+    $from_type = '';
+    $to_type = '';
+    
+    // List of template types
+    $template_types = array(
+        'page' => 'Page',
+        'section' => 'Section',
+        'container' => 'Container',
+        'widget' => 'Widget',
+        'global-widget' => 'Global Widget',
+        'floating' => 'Floating Element',
+        'header' => 'Header',
+        'footer' => 'Footer',
+        'single' => 'Single',
+        'single-post' => 'Single Post',
+        'single-page' => 'Single Page',
+        'archive' => 'Archive',
+        'search-results' => 'Search Results',
+        'error-404' => '404',
+        'loop-item' => 'Loop Item',
+        'product' => 'Product',
+        'product-archive' => 'Product Archive',
+        'popup' => 'Popup',
+        'landing-page' => 'Landing Page',
+        'kit' => 'Kit',
+        'wp-post' => 'WP Post',
+        'jet_header' => 'JetTheme Header',
+        'jet_footer' => 'JetTheme Footer',
+        'jet-listing-items' => 'Jet Listing Items',
+        'jet-popup' => 'Jet Popup'
+    );
+    
+    // Process file upload
+    if (isset($_FILES['json_file']) && !empty($_FILES['json_file']['tmp_name']) && isset($_POST['new_type'])) {
+        if (!current_user_can('manage_options')) {
+            wp_die('No permission.');
+        }
+        
+        $file_content = file_get_contents($_FILES['json_file']['tmp_name']);
+        $json_data = json_decode($file_content, true);
+        
+        if ($json_data === null) {
+            $message = '<div class="error"><p>Error: The file is not valid JSON.</p></div>';
+        } else {
+            // Save original type
+            $from_type = isset($json_data['type']) ? $json_data['type'] : 'unknown';
+            
+            // Apply new type
+            $to_type = sanitize_text_field($_POST['new_type']);
+            $json_data['type'] = $to_type;
+            
+            // Convert back to JSON
+            $modified_json = json_encode($json_data);
+            
+            $message = '<div class="updated"><p>Template type successfully changed from <strong>' . 
+                       esc_html($from_type) . '</strong> to <strong>' . 
+                       esc_html($to_type) . '</strong>.</p></div>';
+        }
+    }
+    
+    ?>
+    <div class="wrap">
+        <h1>Elementor Template Type Changer</h1>
+        <?php echo $message; ?>
+        
+        <?php if (empty($modified_json)): ?>
+        
+        <div class="card">
+            <h2>Change Template Type</h2>
+            <p>Select an Elementor template JSON file that you previously exported and the desired new type.</p>
+            
+            <form method="post" enctype="multipart/form-data">
+                <table class="form-table">
+                    <tr>
+                        <th><label for="json_file">Select JSON File:</label></th>
+                        <td><input type="file" name="json_file" id="json_file" accept=".json" required></td>
+                    </tr>
+                    <tr>
+                        <th><label for="new_type">New Template Type:</label></th>
+                        <td>
+                            <select name="new_type" id="new_type" required>
+                                <option value="">-- Select Type --</option>
+                                <?php foreach ($template_types as $type_key => $type_name): ?>
+                                    <option value="<?php echo esc_attr($type_key); ?>"><?php echo esc_html($type_name); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </td>
+                    </tr>
+                </table>
+                
+                <p class="submit">
+                    <input type="submit" class="button button-primary" value="Change Template Type">
+                </p>
+            </form>
+        </div>
+        
+        <div class="card" style="margin-top: 20px;">
+            <h2>Instructions</h2>
+            <ol>
+                <li>Export your template from Elementor (Elementor > Templates > Export)</li>
+                <li>Select the downloaded JSON file</li>
+                <li>Choose the desired new template type</li>
+                <li>Click "Change Template Type"</li>
+                <li>Download the modified file</li>
+                <li>Import the modified file into Elementor (Elementor > Templates > Import Templates)</li>
+            </ol>
+            <p><strong>Note:</strong> This method creates a new template with the desired type.</p>
+        </div>
+        
+        <?php else: ?>
+        
+        <div class="card">
+            <h2>Template Type Changed</h2>
+            <p>Your template has been changed from <strong><?php echo esc_html($from_type); ?></strong> to <strong><?php echo esc_html($to_type); ?></strong>.</p>
+            <p>Follow these steps to complete the process:</p>
+            <ol>
+                <li>Click "Download Modified File"</li>
+                <li>Go to Elementor > Templates</li>
+                <li>Click "Import Templates" and select the downloaded file</li>
+            </ol>
+            
+            <p class="submit">
+                <button id="download-json" class="button button-primary">Download Modified File</button>
+                <a href="<?php echo admin_url('tools.php?page=elementor-type-changer'); ?>" class="button">Back</a>
+            </p>
+            
+            <script>
+            document.getElementById('download-json').addEventListener('click', function() {
+                var jsonData = <?php echo json_encode($modified_json); ?>;
+                var dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(jsonData);
+                var downloadAnchorNode = document.createElement('a');
+                downloadAnchorNode.setAttribute("href", dataStr);
+                downloadAnchorNode.setAttribute("download", "elementor-template-<?php echo esc_js($to_type); ?>.json");
+                document.body.appendChild(downloadAnchorNode);
+                downloadAnchorNode.click();
+                downloadAnchorNode.remove();
+            });
+            </script>
+        </div>
+        
+        <?php endif; ?>
+    </div>
+    <?php
+}
